@@ -1,6 +1,8 @@
 package web
 
 import (
+	"CloudBook/internal/domain"
+	"CloudBook/internal/service"
 	"fmt"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-gonic/gin"
@@ -11,9 +13,10 @@ import (
 type UserHandler struct {
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
+	svc         service.UserService
 }
 
-func NewUserHandler() *UserHandler {
+func NewUserHandler(svc *service.UserService) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
 		// 和上面比起来，用 ` 看起来就比较清爽
@@ -25,10 +28,11 @@ func NewUserHandler() *UserHandler {
 	return &UserHandler{
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
+		svc:         *svc,
 	}
 }
 
-func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
+func (u *UserHandler) RegisterUserRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", u.SignUp)
 	ug.POST("/login", u.Login)
@@ -49,7 +53,6 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		return
 	}
 	fmt.Println(req)
-	c.String(http.StatusOK, "系统错误")
 	isEmail, err := u.emailExp.MatchString(req.Email)
 	if err != nil {
 		c.String(http.StatusOK, "系统错误")
@@ -74,8 +77,16 @@ func (u *UserHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	// 数据库操作
-
+	// 调用一下 svc 的方法
+	err = u.svc.SignUp(c, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		c.String(http.StatusOK, "系统异常")
+		return
+	}
+	c.String(http.StatusOK, "注册成功")
 }
 
 func (u *UserHandler) Login(c *gin.Context) {
