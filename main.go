@@ -3,6 +3,9 @@ package main
 import (
 	"CloudBook/internal/repository/dao"
 	"CloudBook/internal/web"
+	"CloudBook/internal/web/middleware"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,7 +23,13 @@ func main() {
 		panic(err)
 	}
 	server := gin.Default()
+
+	store := cookie.NewStore([]byte("secret"))
+	server.Use(sessions.Sessions("mysession", store))
+	server.Use(middleware.NewLoginMiddleWareBuilder().Build())
+
 	web.RegisterRoutes(server, db)
+
 	err = server.Run(":8080")
 	if err != nil {
 		panic(err)
