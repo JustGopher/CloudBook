@@ -5,7 +5,7 @@ import (
 	"CloudBook/internal/web"
 	"CloudBook/internal/web/middleware"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -24,9 +24,14 @@ func main() {
 	}
 	server := gin.Default()
 
-	store := cookie.NewStore([]byte("secret"))
+	store := memstore.NewStore([]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
+		[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
+
 	server.Use(sessions.Sessions("mysession", store))
-	server.Use(middleware.NewLoginMiddleWareBuilder().Build())
+	server.Use(middleware.NewLoginMiddleWareBuilder().
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/signup").
+		Build())
 
 	web.RegisterRoutes(server, db)
 
