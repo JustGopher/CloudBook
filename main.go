@@ -5,7 +5,7 @@ import (
 	"CloudBook/internal/web"
 	"CloudBook/internal/web/middleware"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/memstore"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -24,11 +24,21 @@ func main() {
 	}
 	server := gin.Default()
 
-	store := memstore.NewStore([]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
+	//store := memstore.NewStore([]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
+	//	[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
+	store, err := redis.NewStore(10, "tcp", "localhost:6379", "",
+		[]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
 		[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
+	if err != nil {
+		panic(err)
+	}
 
 	server.Use(sessions.Sessions("mysession", store))
-	server.Use(middleware.NewLoginMiddleWareBuilder().
+	//server.Use(middleware.NewLoginMiddleWareBuilder().
+	//	IgnorePaths("/users/login").
+	//	IgnorePaths("/users/signup").
+	//	Build())
+	server.Use(middleware.NewLoginJWTMiddleWareBuilder().
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/signup").
 		Build())

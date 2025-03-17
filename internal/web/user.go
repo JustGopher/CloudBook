@@ -7,6 +7,7 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 )
 
@@ -36,7 +37,8 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (u *UserHandler) RegisterUserRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", u.SignUp)
-	ug.POST("/login", u.Login)
+	//ug.POST("/login", u.Login)
+	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
 	ug.GET("/profile", u.Profile)
 }
@@ -44,7 +46,7 @@ func (u *UserHandler) RegisterUserRoutes(server *gin.Engine) {
 func (u *UserHandler) SignUp(c *gin.Context) {
 	type SignUpReq struct {
 		Email           string `json:"email"`
-		ConfirmPassWord string `json:"confirmPassWord"`
+		ConfirmPassWord string `json:"confirm_passWord"`
 		Password        string `json:"password"`
 	}
 	var req SignUpReq
@@ -117,13 +119,68 @@ func (u *UserHandler) Login(c *gin.Context) {
 	sess := sessions.Default(c)
 	// 要放在 session 里面的值
 	sess.Set("userId", user.Id)
+
+	// Options控制的是cookie
+	sess.Options(sessions.Options{
+		//Secure: true,//只能用https协议
+		//HttpOnly: true,
+		MaxAge: 30,
+	})
 	sess.Save()
+
 	c.String(http.StatusOK, "登录成功")
 	return
 }
+
+func (u *UserHandler) LoginJWT(c *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := c.Bind(&req); err != nil {
+		return
+	}
+	user, err := u.svc.Login(c, req.Email, req.Password)
+	if err == service.ErrInvalidUserOrPassword {
+		c.String(http.StatusOK, "用户名或密码不对")
+		return
+	}
+	if err != nil {
+		c.String(http.StatusOK, "系统错误")
+		return
+	}
+	// 在这里登录成功了
+	// 在这里使用JWT设置登录态
+	// 生成 JWT token
+	token := jwt.New(jwt.SigningMethodHS512)
+	tokenStr, err := token.SignedString([]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	c.Header("x-jwt-token", tokenStr)
+	fmt.Println(user, token, tokenStr)
+	c.String(http.StatusOK, "登录成功")
+	return
+}
+
+func (u *UserHandler) Logout(c *gin.Context) {
+	sess := sessions.Default(c)
+	// Options控制的是cookie
+	sess.Options(sessions.Options{
+		//Secure: true,//只能用https协议
+		//HttpOnly: true,
+		MaxAge: -1,
+	})
+	sess.Save()
+	c.String(http.StatusOK, "退出登录成功")
+}
+
 func (u *UserHandler) Edit(c *gin.Context) {
 
 }
+
 func (u *UserHandler) Profile(c *gin.Context) {
 
 }

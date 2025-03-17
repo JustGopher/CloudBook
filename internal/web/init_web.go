@@ -15,7 +15,7 @@ func RegisterRoutes(server *gin.Engine, db *gorm.DB) *gin.Engine {
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		ExposeHeaders:    []string{"Content-Length", "x-jwt-token"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
