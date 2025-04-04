@@ -3,12 +3,14 @@ package web
 import (
 	"CloudBook/internal/domain"
 	"CloudBook/internal/service"
+	"errors"
 	"fmt"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
+	"time"
 )
 
 // UserHandler 定义和用户相关的路由
@@ -142,7 +144,7 @@ func (u *UserHandler) LoginJWT(c *gin.Context) {
 		return
 	}
 	user, err := u.svc.Login(c, req.Email, req.Password)
-	if err == service.ErrInvalidUserOrPassword {
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
 		c.String(http.StatusOK, "用户名或密码不对")
 		return
 	}
@@ -153,7 +155,14 @@ func (u *UserHandler) LoginJWT(c *gin.Context) {
 	// 在这里登录成功了
 	// 在这里使用JWT设置登录态
 	// 生成 JWT token
-	token := jwt.New(jwt.SigningMethodHS512)
+	cliams := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+		Uid: user.Id,
+	}
+	//token := jwt.New(jwt.SigningMethodHS512)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, cliams)
 	tokenStr, err := token.SignedString([]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
 	if err != nil {
 		c.String(http.StatusInternalServerError, "系统错误")
@@ -165,8 +174,10 @@ func (u *UserHandler) LoginJWT(c *gin.Context) {
 	return
 }
 
-func (u *UserHandler) Logout(c *gin.Context) {
-	sess := sessions.Default(c)
+// Logout jwt 退出登录使用布隆过滤器
+// Logout 退出登录
+func (u *UserHandler) Logout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
 	// Options控制的是cookie
 	sess.Options(sessions.Options{
 		//Secure: true,//只能用https协议
@@ -174,13 +185,38 @@ func (u *UserHandler) Logout(c *gin.Context) {
 		MaxAge: -1,
 	})
 	sess.Save()
-	c.String(http.StatusOK, "退出登录成功")
+	ctx.String(http.StatusOK, "退出登录成功")
 }
 
-func (u *UserHandler) Edit(c *gin.Context) {
+func (u *UserHandler) Edit(ctx *gin.Context) {
 
 }
 
-func (u *UserHandler) Profile(c *gin.Context) {
+func (u *UserHandler) Profile(ctx *gin.Context) {
+	ctx.String(http.StatusOK, "这是你的 Profile")
+}
 
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, ok := ctx.Get("claims")
+	// 你可以断定，必然有 claims
+	if !ok {
+		// 你可以考虑监控住这里
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	// ok 代表是不是 *UserClaims
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	println(claims.Uid)
+	ctx.String(http.StatusOK, "这是你的 Profile")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 声明你自己的要放进去 token 里面的数据
+	Uid int64
+	// 自己随便加，不要放敏感数据
 }
