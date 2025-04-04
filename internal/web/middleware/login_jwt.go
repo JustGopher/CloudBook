@@ -62,6 +62,7 @@ func (l *LoginJWTMiddleWareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
 		// 解析时会自己验证过期时间
 		// err 为 nil, token 肯定不为 nil, 这是约定俗成的
 		if token == nil || !token.Valid || claims.Uid == 0 {
@@ -69,6 +70,14 @@ func (l *LoginJWTMiddleWareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
+		if claims.UserAgent != ctx.Request.UserAgent() {
+			// 严重的安全问题
+			// 你是要监控
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		// 每十秒钟刷新一次
 		now := time.Now()
 		if claims.ExpiresAt.Sub(now) < time.Second*50 {

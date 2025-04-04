@@ -4,11 +4,14 @@ import (
 	"CloudBook/internal/repository/dao"
 	"CloudBook/internal/web"
 	"CloudBook/internal/web/middleware"
+	"CloudBook/pkg/ginx/middlewares/ratelimit"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"time"
 )
 
 func main() {
@@ -24,16 +27,25 @@ func main() {
 	}
 	server := gin.Default()
 
+	redisClient := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+
+	server.Use(ratelimit.NewBuilderWithLimiter(redisClient, time.Second, 100).
+		Build())
+
 	//store := memstore.NewStore([]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
 	//	[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
-	store, err := redis.NewStore(10, "tcp", "localhost:6379", "",
+	//store, err := redis.NewStore(10, "tcp", "localhost:6379", "",
+	//	[]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
+	//	[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
+	//if err != nil {
+	//	panic(err)
+	//}
+	store := memstore.NewStore(
 		[]byte("hxzuKSQBmze7nJ6jssZJQWEPJJJ2trsxfD3nGpnzBuyXCdd6TS7ATS3SEAGWKzwd"),
 		[]byte("3cAraCAc7BZxhpbFXDnQ4PuFezCUXhwDvBPKyhQH3HzH5pTmv4wGRzUUP2AmyRUD"))
-	if err != nil {
-		panic(err)
-	}
 
 	server.Use(sessions.Sessions("mysession", store))
+
 	//server.Use(middleware.NewLoginMiddleWareBuilder().
 	//	IgnorePaths("/users/login").
 	//	IgnorePaths("/users/signup").
